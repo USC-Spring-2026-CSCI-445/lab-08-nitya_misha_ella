@@ -297,7 +297,7 @@ class ObstacleAvoidingWaypointController:
         u_min = -1.5
         u_max = 1.5
 
-        self.wall_follow_controller = PDController(kP=kP, kD=kD, kS=kS, u_min=u_min, u_max=u_max)
+        self.wall_follow_controller = PDController(kP=1.0, kD=0.15, kS=kS, u_min=u_min, u_max=u_max)
         self.goal_angular_controller = PIDController(kP=kP, kI=kI, kD=kD, kS=kS, u_min=u_min, u_max=u_max)
 
         self.v0 = 0.1 #base forward velocity

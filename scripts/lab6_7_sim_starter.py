@@ -476,7 +476,7 @@ class ObstacleAvoidingWaypointController:
 
         current_waypoint_idx = 0
         distance_from_wall_safety = 1.0
-        cone_angle = radians(5)
+        cone_angle = radians(15)
 
         while not rospy.is_shutdown():
 

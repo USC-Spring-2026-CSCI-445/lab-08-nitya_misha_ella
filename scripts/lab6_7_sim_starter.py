@@ -51,13 +51,45 @@ class PIDController:
         assert u_min < u_max, "u_min should be less than u_max"
         # initialize PID variables here
         ######### Your code starts here #########
-
+        self.kP = kP
+        self.kI = kI
+        self.kD = kD
+        self.kS = kS
+        self.u_min = u_min
+        self.u_max = u_max
+        #more?
+        self.t_prev = 0.0
+        self.e_prev = 0.0
+        self.integral = 0.0
         ######### Your code ends here #########
 
     def control(self, err, t):
         # compute PID control action here
         ######### Your code starts here #########
+        dt = t - self.t_prev
+        
+        #compute derivative
+        if self.t_prev == 0.0 or dt <= 0:
+            derivative = 0.0
+        else:
+            derivative = (err - self.e_prev)/dt
 
+        
+        #compute integral
+        if dt > 0:
+            self.integral += err * dt
+
+        #clamp integral
+        self.integral = max(-self.kS, min(self.integral, self.kS))
+
+        #compute u 
+        u = self.kP*err + self.kI*self.integral + self.kD*derivative
+        u = max(self.u_min, min(u, self.u_max))
+
+        self.t_prev = t
+        self.e_prev = err
+
+        return u
         ######### Your code ends here #########
 
 
@@ -71,14 +103,32 @@ class PDController:
         assert u_min < u_max, "u_min should be less than u_max"
         # Initialize PD variables here
         ######### Your code starts here #########
-
+        self.kP = kP
+        #self.kI = kI
+        self.kD = kD
+        self.kS = kS
+        self.u_min = u_min
+        self.u_max = u_max
+        self.t_prev = 0.0
+        self.e_prev = 0.0
         ######### Your code ends here #########
 
     def control(self, err, t):
         dt = t - self.t_prev
         # Compute PD control action here
         ######### Your code starts here #########
+        #compute derivative
+        if self.t_prev == 0.0 or dt <= 0:
+            derivative = 0.0
+        else:
+            derivative = (err - self.e_prev)/dt
 
+        
+        u = self.kP * err + self.kD * derivative
+        u = max(self.u_min, min(u, self.u_max))
+        self.t_prev = t
+        self.e_prev = err
+        return u
         ######### Your code ends here #########
 
 
@@ -115,7 +165,16 @@ class ObstacleFreeWaypointController:
 
         # define linear and angular PID controllers here
         ######### Your code starts here #########
+        kP = 2.0
+        kD = 0.03
+        kI = 0.01
+        kS = 0.4
+        u_min = -1.5
+        u_max = 1.5
 
+        self.angular_controller = PIDController(kP, kI, kD, kS, u_min, u_max)
+       
+        self.v0 = 0.2 #base forward velocity
         ######### Your code ends here #########
 
     def odom_callback(self, msg):
@@ -134,7 +193,28 @@ class ObstacleFreeWaypointController:
 
         # Calculate error in position and orientation
         ######### Your code starts here #########
+               
+        ######### CODE FROM LAB 5 BELOW #########
 
+        ## update self.goal position to be from the parameter goal position
+        dx = self.goal_position["x"] - self.current_position["x"]
+        dy = self.goal_position["y"] - self.current_position["y"]
+        
+        #dist = sqrt(dx^2 + dy^2)
+        distance_error = math.sqrt(dx**2+dy**2)
+        
+        #angle = arctan(dy/dx)
+        goal_angle = math.atan2(dy, dx)
+        current_angle = self.current_position["theta"]
+
+        angle_error = goal_angle - current_angle
+        ##### this error check was from lab 5 -- still needed? #####
+
+        # Ensure angle error is within -pi to pi range
+        if angle_error > math.pi:
+            angle_error -= 2 * math.pi
+        elif angle_error < -math.pi:
+            angle_error += 2 * math.pi
         ######### Your code ends here #########
 
         return distance_error, angle_error
@@ -150,7 +230,7 @@ class ObstacleFreeWaypointController:
 
             # Travel through waypoints one at a time, checking if robot is close enough
             ######### Your code starts here #########
-
+    
             ######### Your code ends here #########
             rate.sleep()
 

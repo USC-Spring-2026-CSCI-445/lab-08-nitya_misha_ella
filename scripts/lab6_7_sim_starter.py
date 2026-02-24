@@ -290,6 +290,15 @@ class ObstacleAvoidingWaypointController:
 
         # Add PID controllers here for obstacle avoidance and waypoint following
         ######### Your code starts here #########
+        kP = 2.0
+        kD = 0.03
+        kI = 0.01
+        kS = 0.4
+        u_min = -1.5
+        u_max = 1.5
+
+        self.wall_follow_controller = PDController(kP=kP, kD=kD, kS=kS, u_min=u_min, u_max=u_max)
+        self.goal_angular_controller = PIDController(kP=kP, kD=kD, kI=kI, kS=kS, u_min=u_min, u_max=u_max)
 
         ######### Your code ends here #########
 
@@ -334,6 +343,16 @@ class ObstacleAvoidingWaypointController:
         ctrl_msg = Twist()
 
         ######### Your code starts here #########
+        if self.ir_distance is None:
+            print("Waiting for IR sensor readings")
+            sleep(0.1)
+            return
+            
+        err = self.wall_following_desired_distance - self.ir_distance
+        t = rospy.get_time()
+        u = self.wall_follow_controller.control(err, t)
+        ctrl_msg.linear.x = 0.20
+        ctrl_msg.angular.z = u
 
         ######### Your code ends here #########
 

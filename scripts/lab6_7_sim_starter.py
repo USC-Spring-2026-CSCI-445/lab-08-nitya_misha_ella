@@ -505,7 +505,14 @@ def control_robot(self):
             # enter obstacle avoidance mode
             if obstacle_detected:
                 rospy.loginfo("Obstacle detected! Switching to wall following.")
-                self.obstacle_avoiding_control()
+                left_distance = min(self.scan.ranges[80:100])
+                if left_distance < 0.5:
+                    self.obstacle_avoiding_control()
+                else:
+                    ctrl_msg = Twist()
+                    ctrl_msg.linear.x = 0.0
+                    ctrl_msg.angular.z = -0.5 # Rotate clockwise in place to put obstacle on left (where the ir sensor is)
+                    self.robot_ctrl_pub.publish(ctrl_msg)
             else:
                 result = self.waypoint_tracking_control(goal)
 

@@ -303,7 +303,7 @@ class ObstacleAvoidingWaypointController:
         self.v0 = 0.1 #base forward velocity
         ######### Your code ends here #########
 
-    def sensor_state_callback(self, state: SensorState):
+    def sensor_state_callback(self, state):
         raw = state.cliff
         # Calculation from raw sensor readings to distance (use equation from Lab 2)
         ######### Your code starts here #########

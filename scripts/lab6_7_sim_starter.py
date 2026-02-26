@@ -303,6 +303,14 @@ class ObstacleAvoidingWaypointController:
         self.v0 = 0.1 #base forward velocity
         ######### Your code ends here #########
 
+    def sensor_state_callback(self, state: SensorState):
+    raw = state.cliff
+    # Calculation from raw sensor readings to distance (use equation from Lab 2)
+    ######### Your code starts here #########
+
+    ######### Your code ends here #########
+    self.ir_distance = distance
+
     def robot_laserscan_callback(self, msg: LaserScan):
         self.laserscan = msg
         if self.laserscan_angles is None:
@@ -471,7 +479,7 @@ class ObstacleAvoidingWaypointController:
             self.pointcloud_pub.publish(pcd)
         return filtered
 
-def control_robot(self):
+    def control_robot(self):
         rate = rospy.Rate(10)  # 20 Hz
 
         current_waypoint_idx = 0

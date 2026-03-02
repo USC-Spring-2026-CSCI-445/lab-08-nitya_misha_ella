@@ -491,7 +491,7 @@ class ObstacleAvoidingWaypointController:
         state = State.NAVIGATING_TO_WAYPOINT
         current_waypoint_idx = 0
         distance_from_wall_safety = 1.0
-        cone_angle = radians(5)
+        cone_angle = radians(20)
 
         # guard against empty waypoints list 
         if current_waypoint_idx >= len(self.waypoints):

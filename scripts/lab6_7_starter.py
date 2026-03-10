@@ -374,6 +374,9 @@ class ObstacleAvoidingWaypointController:
             f"distance to target: {distance_error:.2f}\tangle error: {angle_error:.2f}\tcommanded linear vel: {cmd_linear_vel:.2f}\tcommanded angular vel: {cmd_angular_vel:.2f}"
         )
 
+        ## added this as well: 
+        return distance_error
+
     def obstacle_avoiding_control(self, visualize: bool = True):
 
         ctrl_msg = Twist()

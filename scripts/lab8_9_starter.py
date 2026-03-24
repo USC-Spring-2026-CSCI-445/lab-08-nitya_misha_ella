@@ -323,6 +323,22 @@ class ParticleFilter:
     def get_estimate(self) -> Tuple[float, float, float]:
         # Estimate robot's location using particle weights
         ######### Your code starts here #########
+        log_weights = np.array([p.log_p for p in self._particles])
+        # use sox_est, y_est, theta_estights to normalized weights 
+        log_weights -= np.max(log_weights)
+        weights = np.exp(log_weights)
+        weights /= np.sum(weights)
+
+        xs = np.array([p.x for p in self._particles])
+        ys = np.array([p.y for p in self._particles])
+        thetas = np.array([p.theta for p in self._particles])
+
+        x_est = np.dot(weights, xs)
+        y_est = np.dot(weights, ys)
+        # use circular mean for theta
+        theta_est = math.atan2(np.dot(weights, np.sin(thetas)), np.dot(weights, np.cos(thetas)))
+
+        return x_est, y_est, theta_est
 
         ######### Your code ends here #########
 

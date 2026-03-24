@@ -160,6 +160,56 @@ class Map:
 
 # PID controller class
 ######### Your code starts here #########
+class PIDController:
+    """
+    Generates control action taking into account instantaneous error (proportional action),
+    accumulated error (integral action) and rate of change of error (derivative action).
+    """
+
+    def __init__(self, kP, kI, kD, kS, u_min, u_max):
+        assert u_min < u_max, "u_min should be less than u_max"
+        # initialize PID variables here
+        ######### Your code starts here #########
+        self.kP = kP
+        self.kI = kI
+        self.kD = kD
+        self.kS = kS
+        self.u_min = u_min
+        self.u_max = u_max
+        #more?
+        self.t_prev = 0.0
+        self.e_prev = 0.0
+        self.integral = 0.0
+        ######### Your code ends here #########
+
+    def control(self, err, t):
+        # compute PID control action here
+        ######### Your code starts here #########
+        dt = t - self.t_prev
+        
+        #compute derivative
+        if self.t_prev == 0.0 or dt <= 0:
+            derivative = 0.0
+        else:
+            derivative = (err - self.e_prev)/dt
+
+        
+        #compute integral
+        if dt > 0:
+            self.integral += err * dt
+
+        #clamp integral
+        self.integral = max(-self.kS, min(self.integral, self.kS))
+
+        #compute u 
+        u = self.kP*err + self.kI*self.integral + self.kD*derivative
+        u = max(self.u_min, min(u, self.u_max))
+
+        self.t_prev = t
+        self.e_prev = err
+
+        return u
+        ######### Your code ends here #########
 
 ######### Your code ends here #########
 
@@ -190,6 +240,16 @@ class ParticleFilter:
 
         # Initialize uniformly-distributed particles
         ######### Your code starts here #########
+        x_min, x_max, y_min, y_max = map_.map_aabb                                    
+        self._particles = [
+            Particle(
+                x=uniform(x_min, x_max),
+                y=uniform(y_min, y_max),
+                theta=uniform(0, 2 * pi),                                             
+                log_p=-math.log(n_particles)
+            )                                                                         
+            for _ in range(n_particles)
+        ]
 
         ######### Your code ends here #########
 
@@ -222,7 +282,16 @@ class ParticleFilter:
 
         # Propagate motion of each particle
         ######### Your code starts here #########
+        d = math.sqrt(delta_x*delta_x + delta_y*delta_y)
+        for p in self._particles :
+            #generate random movement command
+            theta_prime = p.theta + delta_theta + np.random.normal(0, self.rotation_variance)
+            d_prime = d + np.random.normal(0, self.translation_variance)
 
+            p.x += (d_prime * math.cos(theta_prime))
+            p.y += (d_prime * math.sin(theta_prime))
+
+            p.theta = angle_to_neg_pi_to_pi(theta_prime)
         ######### Your code ends here #########
 
     def measure(self, z: float, scan_angle_in_rad: float):
@@ -235,6 +304,19 @@ class ParticleFilter:
 
         # Calculate posterior probabilities and resample
         ######### Your code starts here #########
+
+        # want location given reading = reading given location * location / sensor
+        ## P(reading | location) = norm.pdf ( z, expected, self.measurement_variance)
+        ## P(robot at location) = p.log_p ( * z ?)
+        ## 
+
+        for p in self._particles :
+            # given sensor reading ( z, scane angle) AT current p.x and p.y
+            expected = map_.closest_distance((p.x, p.y), p.theta + scan_angle_in_rad)
+            p.log_p += math.log(scipy.stats.norm(expected, self.measurement_variance).pdf(z))
+
+        ## !!!!  working on this, not done
+
 
         ######### Your code ends here #########
 

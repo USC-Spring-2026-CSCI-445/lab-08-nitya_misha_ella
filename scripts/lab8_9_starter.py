@@ -315,7 +315,7 @@ class Controller:
         ######### Your code starts here #########
         # NOTE: with more than 2 angles the particle filter will converge too quickly, so with high likelihood the
         # correct neighborhood won't be found.
-
+        
         ######### Your code ends here #########
 
     def autonomous_exploration(self):
@@ -334,13 +334,65 @@ class Controller:
     def forward_action(self, distance: float):
         # Robot moves forward by a set amount during manual control
         ######### Your code starts here #########
+        
+        
+        start_x = self.current_position["x"]
+        start_y = self.current_position["y"]
+        
+        while True:
+            current_x = self.current_position["x"]
+            current_y = self.current_position["y"]
 
+            distance_traveled = sqrt((current_x - start_x)**2 + (current_y - start_y)**2)
+            
+            if distance_traveled >= distance:
+                break
+            
+            cmd = Twist()
+            
+            
+            cmd.linear.x = 0.2
+            self.robot_ctrl_pub.publish(cmd)        
+
+                
+            rospy.sleep(0.05)
+
+        # stop once you're done
+        cmd = Twist()
+        cmd.linear.x = 0
+        self.robot_ctrl_pub.publish(cmd)
+            
+        
         ######### Your code ends here #########
 
     def rotate_action(self, goal_theta: float):
         # Robot turns by a set amount during manual control
         ######### Your code starts here #########
+        
+        while True:
+            #get current angle and error from goal angle
+            current_theta = self.current_position["theta"]
+            error = angle_to_neg_pi_to_pi(goal_theta - current_theta)
 
+            if abs(error) < 0.1:
+                break
+
+            cmd = Twist()
+            if error > 0:
+                #turn right
+                cmd.angular.z = 0.8
+            else:
+                #turn left
+                cmd.angular.z = -0.8
+
+            self.robot_ctrl_pub.publish(cmd)
+            rospy.sleep(0.05)
+
+        # stop once you're done
+        cmd = Twist()
+        cmd.angular.z = 0
+        self.robot_ctrl_pub.publish(cmd)
+            
 
         ######### Your code ends here #########
 

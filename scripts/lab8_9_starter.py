@@ -176,7 +176,6 @@ class PIDController:
         self.kS = kS
         self.u_min = u_min
         self.u_max = u_max
-        #more?
         self.t_prev = 0.0
         self.e_prev = 0.0
         self.integral = 0.0
@@ -188,21 +187,20 @@ class PIDController:
         dt = t - self.t_prev
         
         #compute derivative
-        if self.t_prev == 0.0 or dt <= 0:
+        if self.t_prev == 0.0 or dt <= 0.0:
             derivative = 0.0
         else:
-            derivative = (err - self.e_prev)/dt
-
+            derivative = (err - self.e_prev) / dt
         
         #compute integral
-        if dt > 0:
+        if dt > 0.0:
             self.integral += err * dt
 
-        #clamp integral
+        #clamp integral to anti-windup
         self.integral = max(-self.kS, min(self.integral, self.kS))
 
-        #compute u 
-        u = self.kP*err + self.kI*self.integral + self.kD*derivative
+        #compute control output u
+        u = self.kP * err + self.kI * self.integral + self.kD * derivative
         u = max(self.u_min, min(u, self.u_max))
 
         self.t_prev = t
@@ -256,7 +254,6 @@ class ParticleFilter:
             )                                                                         
             for _ in range(n_particles)
         ]
-
         ######### Your code ends here #########
 
     def visualize_particles(self):
@@ -288,16 +285,18 @@ class ParticleFilter:
 
         # Propagate motion of each particle
         ######### Your code starts here #########
-        d = math.sqrt(delta_x*delta_x + delta_y*delta_y)
         for p in self._particles:
-            # Add noise to the commanded motion step
-            d_prime = d + np.random.normal(0, self.translation_variance)
-            theta_prime = delta_theta + np.random.normal(0, self.rotation_variance)
+            # Inject noise based on variances (sigma). 
+            noisy_x = delta_x + np.random.normal(0, self.translation_variance)
+            noisy_y = delta_y + np.random.normal(0, self.translation_variance)
+            noisy_theta = delta_theta + np.random.normal(0, self.rotation_variance)
 
-            # Move in the local frame of the particle
-            p.x += (d_prime * math.cos(p.theta))
-            p.y += (d_prime * math.sin(p.theta))
-            p.theta = angle_to_neg_pi_to_pi(p.theta + theta_prime)
+            # Transform local odometry translation to global frame and apply
+            # (Allows accurate back-propagation when delta_x is negative)
+            p.x += (noisy_x * math.cos(p.theta) - noisy_y * math.sin(p.theta))
+            p.y += (noisy_x * math.sin(p.theta) + noisy_y * math.cos(p.theta))
+            
+            p.theta = angle_to_neg_pi_to_pi(p.theta + noisy_theta)
         ######### Your code ends here #########
 
     def measure(self, z: float, scan_angle_in_rad: float):
@@ -309,43 +308,37 @@ class ParticleFilter:
         """
 
         # Calculate posterior probabilities and resample
-                ######### Your code starts here #########
+        ######### Your code starts here #########
 
-        # Step 1: Update each particle's log weight based on how well the expected
-        # sensor reading matches the actual reading z.
+        # Step 1: Update each particle's log weight based on sensor readings
         for p in self._particles:
             expected = self.map_.closest_distance((p.x, p.y), p.theta + scan_angle_in_rad)
-            # If no wall found in that direction, particle is in a bad state — penalize it heavily
             if expected is None:
                 p.log_p += math.log(1e-300)
             else:
-                likelihood = scipy.stats.norm(expected, self.measurement_variance).pdf(z)
-                # Avoid log(0) if likelihood rounds to zero
+                likelihood = scipy.stats.norm(loc=expected, scale=self.measurement_variance).pdf(z)
                 p.log_p += math.log(max(likelihood, 1e-300))
 
-        # Step 2: Normalize log weights for numerical stability, then convert to probabilities.
-        # Subtracting the max log weight before exponentiating prevents underflow/overflow.
+        # Step 2: Normalize log weights using standard log-sum-exp trick for stability
         log_ps = np.array([p.log_p for p in self._particles])
         log_ps -= np.max(log_ps)
         probs = np.exp(log_ps)
         probs /= np.sum(probs)
 
-        # Step 3: Resample — draw N particles with replacement according to weights.
-        indices = choice(self.n_particles, self.n_particles, p=probs) # "Give me N indices drawn from [0, 1, ..., N-1], weighted by probs"
+        # Step 3: Resample particles based on probabilities
+        indices = choice(self.n_particles, self.n_particles, p=probs)
         new_particles = []
         for i in indices:
             old = self._particles[i]
-            # Reset the probabilities to uniform after resampling step
+            # Probabilities reset uniformly after a resample step
             new_particles.append(Particle(old.x, old.y, old.theta, -math.log(self.n_particles)))
         self._particles = new_particles
-
         ######### Your code ends here #########
 
     def get_estimate(self) -> Tuple[float, float, float]:
         # Estimate robot's location using particle weights
         ######### Your code starts here #########
         log_weights = np.array([p.log_p for p in self._particles])
-        # use sox_est, y_est, theta_estights to normalized weights 
         log_weights -= np.max(log_weights)
         weights = np.exp(log_weights)
         weights /= np.sum(weights)
@@ -356,11 +349,11 @@ class ParticleFilter:
 
         x_est = np.dot(weights, xs)
         y_est = np.dot(weights, ys)
-        # use circular mean for theta
+        
+        # circular mean for angular variable
         theta_est = math.atan2(np.dot(weights, np.sin(thetas)), np.dot(weights, np.cos(thetas)))
 
         return x_est, y_est, theta_est
-
         ######### Your code ends here #########
 
 
@@ -437,15 +430,16 @@ class Controller:
         if self.laserscan is None:
             return
             
-        # Sample 2 angles (0 and 90 degrees) to prevent converging incorrectly
-        angles_to_test = [0, 90]
-        
-        for angle_deg in angles_to_test:
-            idx = int(angle_deg) % len(self.laserscan.ranges)
+        # Extract at most 2 angles (front and left side)
+        for angle_deg in [0, 90]:
+            # Scale proportionally so this works regardless of how many points are in the simulated LaserScan
+            idx = int(angle_deg * len(self.laserscan.ranges) / 360.0)
+            idx = idx % len(self.laserscan.ranges) # safety modulo
+            
             z = self.laserscan.ranges[idx]
             
-            # Avoid measuring infinities or NaNs from the lidar simulation
-            if z == inf or math.isnan(z):
+            # Catch bad readings from sim
+            if math.isinf(z) or math.isnan(z):
                 continue
                 
             scan_angle_in_rad = math.radians(angle_deg)
@@ -467,30 +461,34 @@ class Controller:
         ######### Your code starts here #########
         rate = rospy.Rate(2)
         while not rospy.is_shutdown():
-            # 1. Determine confidence based on particle distribution spread
+            # 1. Evaluate confidence level based on particle spatial spread
             xs = [p.x for p in self._particle_filter._particles]
             ys = [p.y for p in self._particle_filter._particles]
             
-            # If standard deviation of particle grouping is very tight, we're confident
+            # Stop if deviation implies the swarm collapsed to the correct localized spot
             if np.std(xs) < 0.15 and np.std(ys) < 0.15:
-                rospy.loginfo("Confident in location. Stopping exploration.")
+                rospy.loginfo("Confident in location. Localized.")
                 break
 
-            # 2. Basic obstacle avoidance logic
-            front_ranges = self.laserscan.ranges[0:15] + self.laserscan.ranges[-15:]
+            # 2. Extract ranges from front of the robot.
+            # Handle potential slice indexing sizes smoothly depending on resolution.
+            front_indices = 15
+            if len(self.laserscan.ranges) < 30:
+                front_indices = max(1, len(self.laserscan.ranges) // 10)
+                
+            front_ranges = list(self.laserscan.ranges[:front_indices]) + list(self.laserscan.ranges[-front_indices:])
             min_front_dist = min(front_ranges) if front_ranges else inf
             
             if min_front_dist < 0.5:
-                # Rotate 90 degrees left to avoid wall
+                # Rotate 90 degrees left to avoid walls
                 goal_theta = angle_to_neg_pi_to_pi(self.current_position["theta"] + pi/2)
                 self.rotate_action(goal_theta)
                 self._particle_filter.move_by(0.0, 0.0, pi/2)
             else:
-                # Move forward 0.3 meters if path is clear
+                # Move forward 0.3 meters
                 self.forward_action(0.3)
                 self._particle_filter.move_by(0.3, 0.0, 0.0)
             
-            # 3. Always take measurements after moving
             self.take_measurements()
             rate.sleep()
         ######### Your code ends here #########
@@ -498,7 +496,6 @@ class Controller:
     def forward_action(self, distance: float):
         # Robot moves forward by a set amount during manual control
         ######### Your code starts here #########
-        
         start_x = self.current_position["x"]
         start_y = self.current_position["y"]
         
@@ -508,28 +505,30 @@ class Controller:
 
             distance_traveled = sqrt((current_x - start_x)**2 + (current_y - start_y)**2)
             
-            if distance_traveled >= distance:
+            # Ensure distance checking logic does not break instantly on negative inputs
+            if distance_traveled >= abs(distance):
                 break
             
             cmd = Twist()
-            cmd.linear.x = 0.2
-            self.robot_ctrl_pub.publish(cmd)        
+            # Assign positive linear velocity if moving forwards, negative if backwards
+            if distance > 0:
+                cmd.linear.x = 0.2
+            else:
+                cmd.linear.x = -0.2
                 
+            self.robot_ctrl_pub.publish(cmd)        
             rospy.sleep(0.05)
 
-        # stop once you're done
+        # Force halt
         cmd = Twist()
-        cmd.linear.x = 0
+        cmd.linear.x = 0.0
         self.robot_ctrl_pub.publish(cmd)
-            
         ######### Your code ends here #########
 
     def rotate_action(self, goal_theta: float):
         # Robot turns by a set amount during manual control
         ######### Your code starts here #########
-        
         while not rospy.is_shutdown():
-            #get current angle and error from goal angle
             current_theta = self.current_position["theta"]
             error = angle_to_neg_pi_to_pi(goal_theta - current_theta)
 
@@ -538,20 +537,16 @@ class Controller:
 
             cmd = Twist()
             if error > 0:
-                #turn right
-                cmd.angular.z = 0.8
+                cmd.angular.z = 0.5
             else:
-                #turn left
-                cmd.angular.z = -0.8
+                cmd.angular.z = -0.5
 
             self.robot_ctrl_pub.publish(cmd)
             rospy.sleep(0.05)
 
-        # stop once you're done
         cmd = Twist()
-        cmd.angular.z = 0
+        cmd.angular.z = 0.0
         self.robot_ctrl_pub.publish(cmd)
-            
         ######### Your code ends here #########
 
 
@@ -605,9 +600,8 @@ if __name__ == "__main__":
                 ######### Your code ends here #########
             elif uinput == "s": # backwards
                 ######### Your code starts here #########
-                goal_theta = angle_to_neg_pi_to_pi(goal_theta + pi)
-                controller.rotate_action(goal_theta)
-                particle_filter.move_by(0.0, 0.0, pi)
+                controller.forward_action(-0.5)
+                particle_filter.move_by(-0.5, 0.0, 0.0)
                 ######### Your code ends here #########
             else:
                 print("Invalid input")

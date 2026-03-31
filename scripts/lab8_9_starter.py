@@ -240,6 +240,12 @@ class ParticleFilter:
 
         # Initialize uniformly-distributed particles
         ######### Your code starts here #########
+        self.map_ = map_                                                              
+        self.n_particles = n_particles
+        self.translation_variance = translation_variance                              
+        self.rotation_variance = rotation_variance                                    
+        self.measurement_variance = measurement_variance
+
         x_min, x_max, y_min, y_max = map_.map_aabb                                    
         self._particles = [
             Particle(

@@ -576,38 +576,39 @@ if __name__ == "__main__":
 
     try:
         # Manual control
-        goal_theta = 0
-        controller.take_measurements()
-        while not rospy.is_shutdown():
-            print("\nEnter 'a', 'w', 's', 'd' to move the robot:")
-            uinput = input("")
-            if uinput == "w": # forward
-                ######### Your code starts here #########
-                controller.forward_action(0.5)
-                particle_filter.move_by(0.5, 0.0, 0.0)
-                ######### Your code ends here #########
-            elif uinput == "a": # left
-                ######### Your code starts here #########
-                goal_theta = angle_to_neg_pi_to_pi(goal_theta + pi / 2)
-                controller.rotate_action(goal_theta)
-                particle_filter.move_by(0.0, 0.0, pi / 2)
-                ######### Your code ends here #########
-            elif uinput == "d": #right
-                ######### Your code starts here #########
-                goal_theta = angle_to_neg_pi_to_pi(goal_theta - pi / 2)
-                controller.rotate_action(goal_theta)
-                particle_filter.move_by(0.0, 0.0, -pi / 2)
-                ######### Your code ends here #########
-            elif uinput == "s": # backwards
-                ######### Your code starts here #########
-                controller.forward_action(-0.5)
-                particle_filter.move_by(-0.5, 0.0, 0.0)
-                ######### Your code ends here #########
-            else:
-                print("Invalid input")
-            ######### Your code starts here #########
-            controller.take_measurements()
-            ######### Your code ends here #########
+        # goal_theta = 0
+        # controller.take_measurements()
+        # while not rospy.is_shutdown():
+        #     print("\nEnter 'a', 'w', 's', 'd' to move the robot:")
+        #     uinput = input("")
+        #     if uinput == "w": # forward
+        #         ######### Your code starts here #########
+        #         controller.forward_action(0.5)
+        #         particle_filter.move_by(0.5, 0.0, 0.0)
+        #         ######### Your code ends here #########
+        #     elif uinput == "a": # left
+        #         ######### Your code starts here #########
+        #         goal_theta = angle_to_neg_pi_to_pi(goal_theta + pi / 2)
+        #         controller.rotate_action(goal_theta)
+        #         particle_filter.move_by(0.0, 0.0, pi / 2)
+        #         ######### Your code ends here #########
+        #     elif uinput == "d": #right
+        #         ######### Your code starts here #########
+        #         goal_theta = angle_to_neg_pi_to_pi(goal_theta - pi / 2)
+        #         controller.rotate_action(goal_theta)
+        #         particle_filter.move_by(0.0, 0.0, -pi / 2)
+        #         ######### Your code ends here #########
+        #     elif uinput == "s": # backwards
+        #         ######### Your code starts here #########
+        #         controller.forward_action(-0.5)
+        #         particle_filter.move_by(-0.5, 0.0, 0.0)
+        #         ######### Your code ends here #########
+        #     else:
+        #         print("Invalid input")
+                
+        #     ######### Your code starts here #########
+        #     controller.take_measurements()
+        #     ######### Your code ends here #########
 
         # Autonomous exploration
         ######### Your code starts here #########

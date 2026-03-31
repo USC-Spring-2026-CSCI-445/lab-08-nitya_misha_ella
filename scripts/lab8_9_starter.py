@@ -309,20 +309,34 @@ class ParticleFilter:
         """
 
         # Calculate posterior probabilities and resample
-        ######### Your code starts here #########
+                ######### Your code starts here #########
 
-        # want location given reading = reading given location * location / sensor
-        ## P(reading | location) = norm.pdf ( z, expected, self.measurement_variance)
-        ## P(robot at location) = p.log_p ( * z ?)
-        ## 
+        # Step 1: Update each particle's log weight based on how well the expected
+        # sensor reading matches the actual reading z.
+        for p in self._particles:
+            expected = self.map_.closest_distance((p.x, p.y), p.theta + scan_angle_in_rad)
+            # If no wall found in that direction, particle is in a bad state — penalize it
+            if expected is None:
+                p.log_p += math.log(1e-300)
+            else:
+                likelihood = scipy.stats.norm(expected, self.measurement_variance).pdf(z)
+                # Avoid log(0) if likelihood rounds to zero
+                p.log_p += math.log(max(likelihood, 1e-300))
 
-        for p in self._particles :
-            # given sensor reading ( z, scane angle) AT current p.x and p.y
-            expected = map_.closest_distance((p.x, p.y), p.theta + scan_angle_in_rad)
-            p.log_p += math.log(scipy.stats.norm(expected, self.measurement_variance).pdf(z))
+        # Step 2: Normalize log weights for numerical stability, then convert to probabilities.
+        # Subtracting the max log weight before exponentiating prevents underflow/overflow.
+        log_ps = np.array([p.log_p for p in self._particles])
+        log_ps -= np.max(log_ps)
+        probs = np.exp(log_ps)
+        probs /= np.sum(probs)
 
-        ## !!!!  working on this, not done
-
+        # Step 3: Resample — draw N particles with replacement according to weights.
+        indices = choice(self.n_particles, self.n_particles, p=probs) # "Give me N indices drawn from [0, 1, ..., N-1], weighted by probs"
+        new_particles = []
+        for i in indices:
+            old = self._particles[i]
+            new_particles.append(Particle(old.x, old.y, old.theta, -math.log(self.n_particles)))
+        self._particles = new_particles
 
         ######### Your code ends here #########
 

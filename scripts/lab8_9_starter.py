@@ -320,6 +320,23 @@ class ParticleFilter:
                 p.log_p += math.log(max(likelihood, 1e-300))
 
         # Step 2: Normalize log weights using standard log-sum-exp trick for stability
+        # log_ps = np.array([p.log_p for p in self._particles])
+        # log_ps -= np.max(log_ps)
+        # probs = np.exp(log_ps)
+        # probs /= np.sum(probs)
+
+        # # Step 3: Resample particles based on probabilities
+        # indices = choice(self.n_particles, self.n_particles, p=probs)
+        # new_particles = []
+        # for i in indices:
+        #     old = self._particles[i]
+        #     # Probabilities reset uniformly after a resample step
+        #     new_particles.append(Particle(old.x, old.y, old.theta, -math.log(self.n_particles)))
+        # self._particles = new_particles
+
+        ######### Your code ends here #########
+
+    def resample(self):
         log_ps = np.array([p.log_p for p in self._particles])
         log_ps -= np.max(log_ps)
         probs = np.exp(log_ps)
@@ -333,7 +350,6 @@ class ParticleFilter:
             # Probabilities reset uniformly after a resample step
             new_particles.append(Particle(old.x, old.y, old.theta, -math.log(self.n_particles)))
         self._particles = new_particles
-        ######### Your code ends here #########
 
     def get_estimate(self) -> Tuple[float, float, float]:
         # Estimate robot's location using particle weights
@@ -445,6 +461,7 @@ class Controller:
             scan_angle_in_rad = math.radians(angle_deg)
             self._particle_filter.measure(z, scan_angle_in_rad)
             
+        self._particle_filter.resample()
         self._particle_filter.visualize_estimate()
         self._particle_filter.visualize_particles()
         ######### Your code ends here #########

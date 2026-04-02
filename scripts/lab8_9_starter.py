@@ -460,38 +460,67 @@ class Controller:
         # Robot autonomously explores environment while it localizes itself
         ######### Your code starts here #########
         rate = rospy.Rate(2)
+        
+        MIN_STEPS = 40          # must take at least this many steps before localizing
+        CONVERGE_WINDOW = 10    # std must stay low for this many consecutive steps
+        STD_THRESHOLD = 0.12
+        
+        steps = 0
+        low_std_streak = 0
+        turn_direction = 1      # alternates to avoid always circling left
+        
         while not rospy.is_shutdown():
-            # 1. Evaluate confidence level based on particle spatial spread
             xs = [p.x for p in self._particle_filter._particles]
             ys = [p.y for p in self._particle_filter._particles]
-            
-            # Stop if deviation implies the swarm collapsed to the correct localized spot
-            if np.std(xs) < 0.15 and np.std(ys) < 0.15:
-                rospy.loginfo("Confident in location. Localized.")
-                break
-
-            # 2. Extract ranges from front of the robot.
-            # Handle potential slice indexing sizes smoothly depending on resolution.
+            std_x, std_y = np.std(xs), np.std(ys)
+    
+            # Only consider localized after minimum exploration AND sustained convergence
+            if steps >= MIN_STEPS:
+                if std_x < STD_THRESHOLD and std_y < STD_THRESHOLD:
+                    low_std_streak += 1
+                else:
+                    low_std_streak = 0  # reset if particles spread back out
+    
+                if low_std_streak >= CONVERGE_WINDOW:
+                    rospy.loginfo(f"Localized after {steps} steps (std_x={std_x:.3f}, std_y={std_y:.3f})")
+                    break
+    
+            # Extract front-facing ranges
             front_indices = 15
             if len(self.laserscan.ranges) < 30:
                 front_indices = max(1, len(self.laserscan.ranges) // 10)
-                
-            front_ranges = list(self.laserscan.ranges[:front_indices]) + list(self.laserscan.ranges[-front_indices:])
-            min_front_dist = min(front_ranges) if front_ranges else inf
-            
+            front_ranges = list(self.laserscan.ranges[:front_indices]) + \
+                           list(self.laserscan.ranges[-front_indices:])
+            min_front_dist = min(front_ranges) if front_ranges else float('inf')
+    
+            # Also check sides to choose smarter turns
+            n = len(self.laserscan.ranges)
+            left_ranges  = list(self.laserscan.ranges[n//4 - front_indices : n//4 + front_indices])
+            right_ranges = list(self.laserscan.ranges[3*n//4 - front_indices : 3*n//4 + front_indices])
+            left_clear  = min(left_ranges)  if left_ranges  else 0.0
+            right_clear = min(right_ranges) if right_ranges else 0.0
+    
             if min_front_dist < 0.5:
-                # Rotate 90 degrees left to avoid walls
-                goal_theta = angle_to_neg_pi_to_pi(self.current_position["theta"] + pi/2)
+                # Turn toward whichever side has more space; fall back to alternating
+                if abs(left_clear - right_clear) > 0.2:
+                    turn_direction = 1 if left_clear > right_clear else -1
+                else:
+                    turn_direction *= -1  # alternate to break symmetry
+    
+                angle = turn_direction * pi / 2
+                goal_theta = angle_to_neg_pi_to_pi(self.current_position["theta"] + angle)
                 self.rotate_action(goal_theta)
-                self._particle_filter.move_by(0.0, 0.0, pi/2)
+                self._particle_filter.move_by(0.0, 0.0, angle)
             else:
-                # Move forward 0.3 meters
-                self.forward_action(0.3)
-                self._particle_filter.move_by(0.3, 0.0, 0.0)
-            
+                # Vary step size: bigger steps in open space help cover ground faster
+                step = 0.3 if min_front_dist < 1.5 else 0.5
+                self.forward_action(step)
+                self._particle_filter.move_by(step, 0.0, 0.0)
+    
             self.take_measurements()
-            rate.sleep()
-        ######### Your code ends here #########
+            steps += 1
+            rate.sleep()        
+            ######### Your code ends here #########
 
     def forward_action(self, distance: float):
         # Robot moves forward by a set amount during manual control

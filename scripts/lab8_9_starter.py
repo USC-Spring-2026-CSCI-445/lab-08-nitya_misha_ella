@@ -614,7 +614,7 @@ if __name__ == "__main__":
 
     map_ = Map(obstacles, map_aabb)
     num_particles = 250
-    translation_variance = 0.1
+    translation_variance = 0.01
     rotation_variance = 0.05
     measurement_variance = 0.1
     particle_filter = ParticleFilter(map_, num_particles, translation_variance, rotation_variance, measurement_variance)

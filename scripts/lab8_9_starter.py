@@ -30,8 +30,6 @@ POSITION_TYPE = Dict[str, float]
 
 # don't change this
 GOAL_THRESHOLD = 0.1
-MAX_ROT_VEL = 2.84
-MAX_LIN_VEL = 0.22
 
 
 def angle_to_0_to_2pi(angle: float) -> float:

@@ -560,9 +560,9 @@ class Controller:
             cmd = Twist()
             # Assign positive linear velocity if moving forwards, negative if backwards
             if distance > 0:
-                cmd.linear.x = 0.2
+                cmd.linear.x = 0.1
             else:
-                cmd.linear.x = -0.2
+                cmd.linear.x = -0.1
                 
             self.robot_ctrl_pub.publish(cmd)        
             rospy.sleep(0.05)
@@ -585,9 +585,9 @@ class Controller:
 
             cmd = Twist()
             if error > 0:
-                cmd.angular.z = 0.5
+                cmd.angular.z = 0.2
             else:
-                cmd.angular.z = -0.5
+                cmd.angular.z = -0.2
 
             self.robot_ctrl_pub.publish(cmd)
             rospy.sleep(0.05)

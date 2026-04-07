@@ -316,7 +316,7 @@ class ParticleFilter:
             if expected is None:
                 p.log_p += math.log(1e-300)
             else:
-                likelihood = scipy.stats.norm(loc=expected, scale=self.measurement_variance).pdf(z)
+                likelihood = scipy.stats.norm(loc=expected, scale=math.sqrt(self.measurement_variance)).pdf(z) ## switched scale to sqrt apr7
                 p.log_p += math.log(max(likelihood, 1e-300))
 
         # Step 2: Normalize log weights using standard log-sum-exp trick for stability
@@ -456,7 +456,10 @@ class Controller:
             z = self.laserscan.ranges[idx]
             if math.isinf(z) or math.isnan(z):
                 continue
-            scan_angle_in_rad = (idx / n) * 2 * math.pi
+            
+            scan_angle_in_rad = self.laserscan.angle_min + idx * self.laserscan.angle_increment ## new change apr7 morning
+            ##scan_angle_in_rad = (idx / n) * 2 * math.pi
+            
             self._particle_filter.measure(z, scan_angle_in_rad)
             chosen += 1
             

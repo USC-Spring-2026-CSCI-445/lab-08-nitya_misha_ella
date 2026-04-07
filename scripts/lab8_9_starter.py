@@ -446,19 +446,15 @@ class Controller:
         if self.laserscan is None:
             return
             
-        # Extract 2 random valid scan angles each call for better disambiguation
-        n = len(self.laserscan.ranges)
-        indices = np.random.choice(n, size=min(n, 20), replace=False)
-        chosen = 0
-        for idx in indices:
-            if chosen >= 2:
-                break
+        # Use fixed angles that reliably hit nearby walls (same as working manual version)
+        for angle_deg in [0, 90]:
+            idx = int(angle_deg * len(self.laserscan.ranges) / 360.0)
+            idx = idx % len(self.laserscan.ranges)
             z = self.laserscan.ranges[idx]
-            if math.isinf(z) or math.isnan(z):
+            if math.isinf(z) or math.isnan(z) or z >= self.laserscan.range_max:
                 continue
-            scan_angle_in_rad = (idx / n) * 2 * math.pi
+            scan_angle_in_rad = math.radians(angle_deg)
             self._particle_filter.measure(z, scan_angle_in_rad)
-            chosen += 1
             
         # self._particle_filter.resample()  # now handled inside measure()
         self._particle_filter.visualize_estimate()

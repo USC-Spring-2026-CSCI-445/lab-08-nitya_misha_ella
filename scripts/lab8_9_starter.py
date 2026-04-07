@@ -456,7 +456,8 @@ class Controller:
             z = self.laserscan.ranges[idx]
             if math.isinf(z) or math.isnan(z):
                 continue
-            scan_angle_in_rad = (idx / n) * 2 * math.pi
+            #scan_angle_in_rad = (idx / n) * 2 * math.pi
+            scan_angle_in_rad = self.laserscan.angle_min + idx * self.laserscan.angle_increment
             self._particle_filter.measure(z, scan_angle_in_rad)
             chosen += 1
             

@@ -501,7 +501,7 @@ class Controller:
                     break
     
             # Extract front-facing ranges
-            front_indices = 15
+            front_indices = 30
             if len(self.laserscan.ranges) < 30:
                 front_indices = max(1, len(self.laserscan.ranges) // 10)
             front_ranges = list(self.laserscan.ranges[:front_indices]) + \

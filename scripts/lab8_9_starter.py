@@ -615,7 +615,7 @@ if __name__ == "__main__":
         map_aabb = map_["map_aabb"]
 
     map_ = Map(obstacles, map_aabb)
-    num_particles = 250
+    num_particles = 500
     translation_variance = 0.01
     rotation_variance = 0.05
     measurement_variance = 0.1
